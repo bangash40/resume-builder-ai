@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'screens/auth_gate.dart';
 import 'services/auth_service.dart';
+import 'services/resume_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,8 +18,11 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Provider<AuthService>(
-      create: (_) => AuthService(),
+    return MultiProvider(
+      providers: [
+        Provider<AuthService>(create: (_) => AuthService()),
+        Provider<ResumeService>(create: (_) => ResumeService()),
+      ],
       child: const MaterialApp(
         home: AuthGate(),
       ),
