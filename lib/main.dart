@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'firebase_options.dart';
-import 'screens/login_screen.dart';
+import 'screens/auth_gate.dart';
 import 'services/auth_service.dart';
 
 void main() async {
@@ -20,7 +20,7 @@ class MainApp extends StatelessWidget {
     return Provider<AuthService>(
       create: (_) => AuthService(),
       child: const MaterialApp(
-        home: LoginScreen(),
+        home: AuthGate(),
       ),
     );
   }
