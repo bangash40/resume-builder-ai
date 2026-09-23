@@ -48,6 +48,22 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _submitWithGoogle() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await context.read<AuthService>().signInWithGoogle();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _errorMessage = authErrorMessage(e));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -112,6 +128,23 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Text('Log In'),
+                  ),
+                  const SizedBox(height: 16),
+                  const Row(
+                    children: [
+                      Expanded(child: Divider()),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        child: Text('or'),
+                      ),
+                      Expanded(child: Divider()),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: _isLoading ? null : _submitWithGoogle,
+                    icon: const Icon(Icons.login),
+                    label: const Text('Continue with Google'),
                   ),
                   const SizedBox(height: 12),
                   TextButton(
