@@ -72,7 +72,9 @@ class ResumeModel {
   const ResumeModel({
     required this.resumeId,
     this.title = 'Untitled Resume',
-    this.templateId = 'default',
+    this.templateId = 'classic',
+    this.accentColor = 0xFF6750A4,
+    this.fontFamily = 'Roboto',
     this.summary = '',
     this.experience = const [],
     this.education = const [],
@@ -84,6 +86,10 @@ class ResumeModel {
   final String resumeId;
   final String title;
   final String templateId;
+
+  /// ARGB color value, e.g. `0xFF6750A4`.
+  final int accentColor;
+  final String fontFamily;
   final String summary;
   final List<ExperienceEntry> experience;
   final List<EducationEntry> education;
@@ -95,7 +101,9 @@ class ResumeModel {
     return ResumeModel(
       resumeId: resumeId,
       title: json['title'] as String? ?? 'Untitled Resume',
-      templateId: json['templateId'] as String? ?? 'default',
+      templateId: json['templateId'] as String? ?? 'classic',
+      accentColor: json['accentColor'] as int? ?? 0xFF6750A4,
+      fontFamily: json['fontFamily'] as String? ?? 'Roboto',
       summary: json['summary'] as String? ?? '',
       experience: (json['experience'] as List? ?? const [])
           .map(
@@ -121,6 +129,8 @@ class ResumeModel {
       'resumeId': resumeId,
       'title': title,
       'templateId': templateId,
+      'accentColor': accentColor,
+      'fontFamily': fontFamily,
       'summary': summary,
       'experience': experience.map((e) => e.toJson()).toList(),
       'education': education.map((e) => e.toJson()).toList(),
@@ -136,6 +146,8 @@ class ResumeModel {
   ResumeModel copyWith({
     String? title,
     String? templateId,
+    int? accentColor,
+    String? fontFamily,
     String? summary,
     List<ExperienceEntry>? experience,
     List<EducationEntry>? education,
@@ -146,6 +158,8 @@ class ResumeModel {
       resumeId: resumeId,
       title: title ?? this.title,
       templateId: templateId ?? this.templateId,
+      accentColor: accentColor ?? this.accentColor,
+      fontFamily: fontFamily ?? this.fontFamily,
       summary: summary ?? this.summary,
       experience: experience ?? this.experience,
       education: education ?? this.education,

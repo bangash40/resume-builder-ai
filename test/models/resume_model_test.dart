@@ -43,7 +43,7 @@ void main() {
       final resume = ResumeModel.fromJson('resume-2', const {});
 
       expect(resume.title, 'Untitled Resume');
-      expect(resume.templateId, 'default');
+      expect(resume.templateId, 'classic');
       expect(resume.experience, isEmpty);
       expect(resume.education, isEmpty);
       expect(resume.skills, isEmpty);
