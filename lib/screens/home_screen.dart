@@ -14,8 +14,10 @@ class HomeScreen extends StatelessWidget {
 
     if (userId != null) {
       try {
-        final resumes =
-            await context.read<ResumeService>().watchResumes(userId).first;
+        final resumes = await context
+            .read<ResumeService>()
+            .watchResumes(userId)
+            .first;
         if (resumes.isNotEmpty) existingResumeId = resumes.first.resumeId;
       } catch (_) {
         // Fall back to starting a new resume if the lookup fails (e.g. offline).

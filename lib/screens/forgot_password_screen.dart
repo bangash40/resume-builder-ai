@@ -34,9 +34,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     });
 
     try {
-      await context
-          .read<AuthService>()
-          .sendPasswordResetEmail(_emailController.text.trim());
+      await context.read<AuthService>().sendPasswordResetEmail(
+        _emailController.text.trim(),
+      );
       if (mounted) setState(() => _emailSent = true);
     } catch (e) {
       if (!mounted) return;
@@ -87,8 +87,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         TextFormField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
-                          decoration:
-                              const InputDecoration(labelText: 'Email'),
+                          decoration: const InputDecoration(labelText: 'Email'),
                           validator: (value) {
                             if (value == null || value.trim().isEmpty) {
                               return 'Enter your email';
@@ -116,8 +115,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               ? const SizedBox(
                                   height: 20,
                                   width: 20,
-                                  child:
-                                      CircularProgressIndicator(strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : const Text('Send reset link'),
                         ),
