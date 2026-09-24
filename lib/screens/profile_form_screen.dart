@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/resume_model.dart';
+import '../services/ai_service.dart';
 import '../services/auth_service.dart';
 import '../services/resume_service.dart';
 
@@ -34,6 +35,9 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
   Timer? _debounce;
   _SaveStatus _saveStatus = _SaveStatus.idle;
   bool _isLoading = true;
+  bool _isGeneratingSummary = false;
+  bool _isSuggestingSkills = false;
+  List<String> _suggestedSkills = [];
 
   @override
   void initState() {
@@ -136,6 +140,74 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
   void _removeSkill(String skill) {
     setState(() => _skills = _skills.where((s) => s != skill).toList());
     _scheduleAutoSave();
+  }
+
+  void _addSuggestedSkill(String skill) {
+    setState(() {
+      _skills = [..._skills, skill];
+      _suggestedSkills = _suggestedSkills.where((s) => s != skill).toList();
+    });
+    _scheduleAutoSave();
+  }
+
+  String _experienceSummaryForPrompt() {
+    return _experience
+        .map((e) => '${e.title} at ${e.company}: ${e.bullets.join('; ')}')
+        .join('\n');
+  }
+
+  Future<void> _generateSummary() async {
+    setState(() => _isGeneratingSummary = true);
+    try {
+      final summary = await context.read<AiService>().generateSummary(
+        targetRole: _targetRoleController.text.trim(),
+        skills: _skills,
+        rawExperience: _experienceSummaryForPrompt(),
+      );
+      if (!mounted) return;
+      _summaryController.text = summary;
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not generate a summary: ${_friendlyError(e)}'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isGeneratingSummary = false);
+    }
+  }
+
+  Future<void> _suggestSkills() async {
+    setState(() => _isSuggestingSkills = true);
+    try {
+      final suggestions = await context.read<AiService>().suggestSkills(
+        targetRole: _targetRoleController.text.trim(),
+        existingSkills: _skills,
+      );
+      if (!mounted) return;
+      setState(() => _suggestedSkills = suggestions);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not suggest skills: ${_friendlyError(e)}'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSuggestingSkills = false);
+    }
+  }
+
+  String _friendlyError(Object error) {
+    final message = error.toString().toLowerCase();
+    if (message.contains('429') || message.contains('rate')) {
+      return 'the AI is rate-limited, try again in a moment';
+    }
+    if (message.contains('network') || message.contains('socket')) {
+      return 'no internet connection';
+    }
+    return 'please try again';
   }
 
   Future<void> _addOrEditExperience({
@@ -268,6 +340,25 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
                 alignLabelWithHint: true,
               ),
             ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: _isGeneratingSummary ? null : _generateSummary,
+                icon: _isGeneratingSummary
+                    ? const SizedBox(
+                        height: 16,
+                        width: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.auto_awesome, size: 18),
+                label: Text(
+                  _summaryController.text.isEmpty
+                      ? 'Generate with AI'
+                      : 'Regenerate with AI',
+                ),
+              ),
+            ),
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -341,7 +432,23 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
                   ),
                 ),
             const SizedBox(height: 24),
-            Text('Skills', style: Theme.of(context).textTheme.titleMedium),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Skills', style: Theme.of(context).textTheme.titleMedium),
+                TextButton.icon(
+                  onPressed: _isSuggestingSkills ? null : _suggestSkills,
+                  icon: _isSuggestingSkills
+                      ? const SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.auto_awesome, size: 18),
+                  label: const Text('Suggest skills'),
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
             Row(
               children: [
@@ -370,6 +477,26 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
                   ),
               ],
             ),
+            if (_suggestedSkills.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Suggested for you — tap to add',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final skill in _suggestedSkills)
+                    ActionChip(
+                      avatar: const Icon(Icons.add, size: 16),
+                      label: Text(skill),
+                      onPressed: () => _addSuggestedSkill(skill),
+                    ),
+                ],
+              ),
+            ],
             const SizedBox(height: 32),
           ],
         ),
@@ -404,6 +531,8 @@ class _ExperienceDialogState extends State<_ExperienceDialog> {
     text: widget.existing?.bullets.join('\n') ?? '',
   );
 
+  bool _isRewriting = false;
+
   @override
   void dispose() {
     _titleController.dispose();
@@ -412,6 +541,26 @@ class _ExperienceDialogState extends State<_ExperienceDialog> {
     _endController.dispose();
     _bulletsController.dispose();
     super.dispose();
+  }
+
+  Future<void> _rewriteWithAi() async {
+    setState(() => _isRewriting = true);
+    try {
+      final bullets = await context.read<AiService>().generateExperienceBullets(
+        jobTitle: _titleController.text.trim(),
+        company: _companyController.text.trim(),
+        rawDescription: _bulletsController.text.trim(),
+      );
+      if (!mounted) return;
+      _bulletsController.text = bullets.join('\n');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not rewrite bullets, try again.')),
+      );
+    } finally {
+      if (mounted) setState(() => _isRewriting = false);
+    }
   }
 
   @override
@@ -454,6 +603,20 @@ class _ExperienceDialogState extends State<_ExperienceDialog> {
               maxLines: 3,
               decoration: const InputDecoration(
                 labelText: 'Achievements (one per line)',
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: _isRewriting ? null : _rewriteWithAi,
+                icon: _isRewriting
+                    ? const SizedBox(
+                        height: 16,
+                        width: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.auto_awesome, size: 18),
+                label: const Text('Rewrite with AI'),
               ),
             ),
           ],

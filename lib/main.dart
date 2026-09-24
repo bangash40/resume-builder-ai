@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'firebase_options.dart';
 import 'screens/auth_gate.dart';
+import 'services/ai_service.dart';
 import 'services/auth_service.dart';
 import 'services/resume_service.dart';
 
@@ -22,10 +23,9 @@ class MainApp extends StatelessWidget {
       providers: [
         Provider<AuthService>(create: (_) => AuthService()),
         Provider<ResumeService>(create: (_) => ResumeService()),
+        Provider<AiService>(create: (_) => AiService()),
       ],
-      child: const MaterialApp(
-        home: AuthGate(),
-      ),
+      child: const MaterialApp(home: AuthGate()),
     );
   }
 }
