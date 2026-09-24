@@ -7,6 +7,7 @@ import '../models/resume_model.dart';
 import '../services/ai_service.dart';
 import '../services/auth_service.dart';
 import '../services/resume_service.dart';
+import 'resume_preview_screen.dart';
 
 enum _SaveStatus { idle, saving, saved, error }
 
@@ -30,6 +31,9 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
   List<ExperienceEntry> _experience = [];
   List<EducationEntry> _education = [];
   List<String> _skills = [];
+  String _templateId = 'classic';
+  int _accentColor = 0xFF6750A4;
+  String _fontFamily = 'Roboto';
 
   String? _resumeId;
   Timer? _debounce;
@@ -61,6 +65,9 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
           _experience = existing.experience;
           _education = existing.education;
           _skills = existing.skills;
+          _templateId = existing.templateId;
+          _accentColor = existing.accentColor;
+          _fontFamily = existing.fontFamily;
         }
       }
     }
@@ -95,22 +102,54 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
     }
   }
 
-  Future<void> _saveNow() async {
-    final userId = context.read<AuthService>().currentUser?.uid;
-    if (userId == null) return;
+  void _openPreview() {
+    final user = context.read<AuthService>().currentUser;
+    final displayName = (user?.displayName?.trim().isNotEmpty ?? false)
+        ? user!.displayName!.trim()
+        : (user?.email ?? 'Your Name');
 
-    final resumeService = context.read<ResumeService>();
-    final resume = ResumeModel(
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ResumePreviewScreen(
+          initialResume: _buildResume(),
+          displayName: displayName,
+          contactEmail: user?.email ?? '',
+          onChanged: (updated) {
+            setState(() {
+              _templateId = updated.templateId;
+              _accentColor = updated.accentColor;
+              _fontFamily = updated.fontFamily;
+            });
+            _scheduleAutoSave();
+          },
+        ),
+      ),
+    );
+  }
+
+  ResumeModel _buildResume() {
+    return ResumeModel(
       resumeId: _resumeId ?? '',
       title: _titleController.text.trim().isEmpty
           ? 'Untitled Resume'
           : _titleController.text.trim(),
+      templateId: _templateId,
+      accentColor: _accentColor,
+      fontFamily: _fontFamily,
       summary: _summaryController.text.trim(),
       targetRole: _targetRoleController.text.trim(),
       experience: _experience,
       education: _education,
       skills: _skills,
     );
+  }
+
+  Future<void> _saveNow() async {
+    final userId = context.read<AuthService>().currentUser?.uid;
+    if (userId == null) return;
+
+    final resumeService = context.read<ResumeService>();
+    final resume = _buildResume();
 
     setState(() => _saveStatus = _SaveStatus.saving);
     try {
@@ -288,6 +327,11 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
         appBar: AppBar(
           title: const Text('Build Your Resume'),
           actions: [
+            IconButton(
+              icon: const Icon(Icons.visibility_outlined),
+              tooltip: 'Preview',
+              onPressed: _openPreview,
+            ),
             IconButton(
               icon: const Icon(Icons.check),
               tooltip: 'Save and close',
