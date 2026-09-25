@@ -54,11 +54,13 @@ void main() {
         resumeId: 'resume-3',
         title: 'My Resume',
         experience: [
-          ExperienceEntry(title: 'Intern', company: 'Startup', bullets: ['Did things']),
+          ExperienceEntry(
+            title: 'Intern',
+            company: 'Startup',
+            bullets: ['Did things'],
+          ),
         ],
-        education: [
-          EducationEntry(institution: 'University', degree: 'BSc'),
-        ],
+        education: [EducationEntry(institution: 'University', degree: 'BSc')],
         skills: ['Testing'],
       );
 

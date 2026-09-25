@@ -59,7 +59,7 @@ class _ResumePreviewScreenState extends State<ResumePreviewScreen> {
           Text('Template', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           SizedBox(
-            height: 92,
+            height: 104,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: kResumeTemplates.length,
@@ -175,11 +175,14 @@ class _TemplateCard extends StatelessWidget {
           children: [
             Text(template.name, style: Theme.of(context).textTheme.labelLarge),
             const SizedBox(height: 4),
-            Text(
-              template.description,
-              style: Theme.of(context).textTheme.bodySmall,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
+            // Expanded so the description truncates within the card's fixed
+            // height instead of overflowing at larger system font sizes.
+            Expanded(
+              child: Text(
+                template.description,
+                style: Theme.of(context).textTheme.bodySmall,
+                overflow: TextOverflow.fade,
+              ),
             ),
           ],
         ),

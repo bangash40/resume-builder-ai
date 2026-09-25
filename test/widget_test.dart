@@ -5,8 +5,9 @@ import 'package:resume_builder_ai/screens/login_screen.dart';
 import 'package:resume_builder_ai/services/auth_service.dart';
 
 void main() {
-  testWidgets('LoginScreen shows email/password fields and a login button',
-      (WidgetTester tester) async {
+  testWidgets('LoginScreen shows email/password fields and a login button', (
+    WidgetTester tester,
+  ) async {
     // AuthService is provided lazily: nothing here touches FirebaseAuth
     // unless a button is pressed, so no Firebase.initializeApp() is needed.
     await tester.pumpWidget(

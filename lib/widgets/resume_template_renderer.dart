@@ -531,26 +531,34 @@ class _CompactLayout extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                displayName,
-                style: _font(
-                  resume.fontFamily,
-                  TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: accent,
+              Expanded(
+                child: Text(
+                  displayName,
+                  style: _font(
+                    resume.fontFamily,
+                    TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: accent,
+                    ),
                   ),
                 ),
               ),
-              Text(
-                contactEmail,
-                style: _font(
-                  resume.fontFamily,
-                  const TextStyle(fontSize: 10, color: Colors.black54),
+              if (contactEmail.isNotEmpty && contactEmail != displayName) ...[
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    contactEmail,
+                    textAlign: TextAlign.end,
+                    style: _font(
+                      resume.fontFamily,
+                      const TextStyle(fontSize: 10, color: Colors.black54),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
           if (resume.targetRole.isNotEmpty)
