@@ -19,7 +19,6 @@ dependencies:
   pdf: ^3.11.1
   printing: ^5.13.4
   google_generative_ai: ^0.4.7
-  google_fonts: ^8.2.1
 
 dev_dependencies:
   flutter_test:
@@ -28,3 +27,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  # Resume fonts, bundled so PDF export works offline.
+  assets:
+    - assets/fonts/

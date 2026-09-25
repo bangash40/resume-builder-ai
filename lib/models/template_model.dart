@@ -13,8 +13,8 @@ class TemplateModel {
 }
 
 /// The resume templates available in v1.0 (PRD FR-5.1: at least 4
-/// pre-designed templates). Layouts are implemented as widgets in
-/// `resume_template_renderer.dart`, keyed by `templateId`.
+/// pre-designed templates). Layouts are implemented as PDF layouts in
+/// `pdf_service.dart`, keyed by `templateId`.
 const List<TemplateModel> kResumeTemplates = [
   TemplateModel(
     templateId: 'classic',
