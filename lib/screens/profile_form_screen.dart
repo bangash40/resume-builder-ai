@@ -7,6 +7,7 @@ import '../models/resume_model.dart';
 import '../services/ai_service.dart';
 import '../services/auth_service.dart';
 import '../services/resume_service.dart';
+import 'linkedin_import_screen.dart';
 import 'resume_preview_screen.dart';
 
 enum _SaveStatus { idle, saving, saved, error }
@@ -100,6 +101,31 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
       _debounce!.cancel();
       await _saveNow();
     }
+  }
+
+  Future<void> _importFromLinkedIn() async {
+    final imported = await Navigator.of(context).push<ImportedProfile>(
+      MaterialPageRoute(builder: (_) => const LinkedInImportScreen()),
+    );
+    if (imported == null || !mounted) return;
+
+    setState(() {
+      if (imported.targetRole != null) {
+        _targetRoleController.text = imported.targetRole!;
+      }
+      if (imported.summary != null) {
+        _summaryController.text = imported.summary!;
+      }
+      if (imported.experience != null) _experience = imported.experience!;
+      if (imported.education != null) _education = imported.education!;
+      if (imported.skills != null) _skills = imported.skills!;
+    });
+    _scheduleAutoSave();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Imported from LinkedIn. Review and edit it below.'),
+      ),
+    );
   }
 
   void _openPreview() {
@@ -357,6 +383,12 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
         body: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            OutlinedButton.icon(
+              onPressed: _importFromLinkedIn,
+              icon: const Icon(Icons.download_outlined),
+              label: const Text('Import from LinkedIn'),
+            ),
+            const SizedBox(height: 16),
             Text(
               'Personal details',
               style: Theme.of(context).textTheme.titleMedium,

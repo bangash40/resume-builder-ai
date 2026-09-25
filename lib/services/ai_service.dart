@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:google_generative_ai/google_generative_ai.dart';
 
+import '../models/resume_model.dart';
 import '../secrets.dart';
 
 /// Wraps the Gemini API for resume content generation (TRD §6.2, Approach A:
@@ -120,5 +121,38 @@ Respond ONLY with JSON in this exact shape: {"skills": ["...", "..."]}
     final raw = await _generateWithRetry(prompt);
     final json = _decodeJsonObject(raw);
     return List<String>.from(json['skills'] as List? ?? const []);
+  }
+
+  /// Extracts resume sections from text the user copied from their LinkedIn
+  /// profile. LinkedIn's public API doesn't expose experience, education or
+  /// skills, so import is user-assisted (TRD §6.3, §11.3).
+  Future<ResumeModel> parseLinkedInProfile(String profileText) async {
+    final prompt =
+        '''
+Extract resume data from the LinkedIn profile text below. Use only information
+present in the text and never invent anything. Use empty strings or empty lists
+for anything missing. Keep dates as written (for example "Jan 2022" or
+"Present"). Turn each job's description into up to 5 concise bullet points.
+
+Respond ONLY with JSON in this exact shape:
+{"targetRole": "the person's headline or current job title",
+ "summary": "their About section, or an empty string",
+ "experience": [{"title": "", "company": "", "startDate": "", "endDate": "", "bullets": [""]}],
+ "education": [{"institution": "", "degree": "", "startDate": "", "endDate": ""}],
+ "skills": [""]}
+
+LinkedIn profile text:
+"""
+$profileText
+"""
+''';
+    final raw = await _generateWithRetry(prompt);
+    try {
+      return ResumeModel.fromJson('', _decodeJsonObject(raw));
+    } catch (_) {
+      throw const FormatException(
+        'The AI returned the profile in an unexpected format.',
+      );
+    }
   }
 }
