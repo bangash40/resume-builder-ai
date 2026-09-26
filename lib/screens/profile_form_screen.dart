@@ -175,17 +175,14 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
     if (userId == null) return;
 
     final resumeService = context.read<ResumeService>();
+    // Assigned synchronously, before the write, so a save that starts while
+    // this one is still in flight updates the same document.
+    _resumeId ??= resumeService.newResumeId(userId);
     final resume = _buildResume();
 
     setState(() => _saveStatus = _SaveStatus.saving);
     try {
-      if (_resumeId == null) {
-        final newId = await resumeService.createResume(userId, resume);
-        if (!mounted) return;
-        setState(() => _resumeId = newId);
-      } else {
-        await resumeService.updateResume(userId, resume);
-      }
+      await resumeService.saveResume(userId, resume);
       if (mounted) setState(() => _saveStatus = _SaveStatus.saved);
     } catch (_) {
       if (mounted) setState(() => _saveStatus = _SaveStatus.error);

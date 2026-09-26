@@ -144,6 +144,7 @@ class ResumeModel {
   }
 
   ResumeModel copyWith({
+    String? resumeId,
     String? title,
     String? templateId,
     int? accentColor,
@@ -155,7 +156,7 @@ class ResumeModel {
     String? targetRole,
   }) {
     return ResumeModel(
-      resumeId: resumeId,
+      resumeId: resumeId ?? this.resumeId,
       title: title ?? this.title,
       templateId: templateId ?? this.templateId,
       accentColor: accentColor ?? this.accentColor,
