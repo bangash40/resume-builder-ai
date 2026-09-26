@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../services/analytics_service.dart';
 import '../services/auth_service.dart';
 import '../utils/auth_error.dart';
 import 'forgot_password_screen.dart';
@@ -36,11 +37,14 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = null;
     });
 
+    // Read before awaiting: a successful login replaces this screen.
+    final analytics = context.read<AnalyticsService>();
     try {
       await context.read<AuthService>().signInWithEmail(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
+      analytics.logLogin('password');
     } catch (e) {
       if (!mounted) return;
       setState(() => _errorMessage = authErrorMessage(e));
@@ -55,8 +59,14 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = null;
     });
 
+    final analytics = context.read<AnalyticsService>();
     try {
-      await context.read<AuthService>().signInWithGoogle();
+      final credential = await context.read<AuthService>().signInWithGoogle();
+      if (credential != null) {
+        // Google sign-in creates the account on first use.
+        final isNew = credential.additionalUserInfo?.isNewUser ?? false;
+        isNew ? analytics.logSignUp('google') : analytics.logLogin('google');
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _errorMessage = authErrorMessage(e));

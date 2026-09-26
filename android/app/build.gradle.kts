@@ -1,5 +1,9 @@
 plugins {
     id("com.android.application")
+    // Reads android/app/google-services.json (git-ignored; see README).
+    id("com.google.gms.google-services")
+    // Crashlytics needs this to stamp a build ID into the app.
+    id("com.google.firebase.crashlytics")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }

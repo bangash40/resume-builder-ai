@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../services/analytics_service.dart';
 import '../services/auth_service.dart';
 import '../utils/auth_error.dart';
 
@@ -36,11 +37,14 @@ class _SignupScreenState extends State<SignupScreen> {
       _errorMessage = null;
     });
 
+    // Read before awaiting: a successful sign-up replaces this screen.
+    final analytics = context.read<AnalyticsService>();
     try {
       await context.read<AuthService>().signUpWithEmail(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
+      analytics.logSignUp('password');
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;

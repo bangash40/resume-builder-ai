@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../models/resume_model.dart';
 import '../models/template_model.dart';
+import '../services/analytics_service.dart';
 import '../services/pdf_service.dart';
 
 const List<int> _kAccentColors = [
@@ -52,6 +53,10 @@ class _ResumePreviewScreenState extends State<ResumePreviewScreen> {
         displayName: widget.displayName,
         contactEmail: widget.contactEmail,
       );
+
+  void _logExport(String method) => context
+      .read<AnalyticsService>()
+      .logResumeExported(templateId: _resume.templateId, method: method);
 
   void _update(ResumeModel Function(ResumeModel) updater) {
     setState(() {
@@ -152,6 +157,8 @@ class _ResumePreviewScreenState extends State<ResumePreviewScreen> {
               scrollViewDecoration: BoxDecoration(
                 color: colorScheme.surfaceContainerHighest,
               ),
+              onShared: (_) => _logExport('share'),
+              onPrinted: (_) => _logExport('print'),
               onError: (_, _) => _PdfErrorView(
                 onRetry: () =>
                     setState(() => _buildPdf = _pdfBuilderFor(_resume)),

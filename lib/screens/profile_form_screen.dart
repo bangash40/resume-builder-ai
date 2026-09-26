@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../models/resume_model.dart';
 import '../services/ai_service.dart';
+import '../services/analytics_service.dart';
 import '../services/auth_service.dart';
 import '../services/resume_service.dart';
 import '../utils/ai_error.dart';
@@ -122,6 +123,15 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
       if (imported.skills != null) _skills = imported.skills!;
     });
     _scheduleAutoSave();
+    context.read<AnalyticsService>().logLinkedInImport(
+      sectionCount: [
+        imported.targetRole,
+        imported.summary,
+        imported.experience,
+        imported.education,
+        imported.skills,
+      ].where((section) => section != null).length,
+    );
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Imported from LinkedIn. Review and edit it below.'),
@@ -178,7 +188,10 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
     final resumeService = context.read<ResumeService>();
     // Assigned synchronously, before the write, so a save that starts while
     // this one is still in flight updates the same document.
-    _resumeId ??= resumeService.newResumeId(userId);
+    if (_resumeId == null) {
+      _resumeId = resumeService.newResumeId(userId);
+      context.read<AnalyticsService>().logResumeCreated();
+    }
 
     // Not awaited: Firestore applies the write to the on-device cache
     // immediately, but the returned future only completes once the server
@@ -228,7 +241,9 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
         rawExperience: _experienceSummaryForPrompt(),
       );
       if (!mounted) return;
-      _summaryController.text = summary;    } catch (e) {
+      _summaryController.text = summary;
+      context.read<AnalyticsService>().logAiGenerated('summary');
+    } catch (e) {
       if (!mounted) return;
       _showAiError("Couldn't write your summary.", e, _generateSummary);
     } finally {
@@ -244,7 +259,9 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
         existingSkills: _skills,
       );
       if (!mounted) return;
-      setState(() => _suggestedSkills = suggestions);    } catch (e) {
+      setState(() => _suggestedSkills = suggestions);
+      context.read<AnalyticsService>().logAiGenerated('skills');
+    } catch (e) {
       if (!mounted) return;
       _showAiError("Couldn't suggest skills.", e, _suggestSkills);
     } finally {
@@ -617,7 +634,9 @@ class _ExperienceDialogState extends State<_ExperienceDialog> {
         rawDescription: _bulletsController.text.trim(),
       );
       if (!mounted) return;
-      _bulletsController.text = bullets.join('\n');    } catch (e) {
+      _bulletsController.text = bullets.join('\n');
+      context.read<AnalyticsService>().logAiGenerated('bullets');
+    } catch (e) {
       // Shown inside the dialog: a snackbar would sit behind the dialog's
       // barrier where it can't be read.
       if (mounted) setState(() => _rewriteError = aiErrorMessage(e));
