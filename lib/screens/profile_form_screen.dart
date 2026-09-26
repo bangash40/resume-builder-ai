@@ -7,10 +7,11 @@ import '../models/resume_model.dart';
 import '../services/ai_service.dart';
 import '../services/auth_service.dart';
 import '../services/resume_service.dart';
+import '../utils/ai_error.dart';
 import 'linkedin_import_screen.dart';
 import 'resume_preview_screen.dart';
 
-enum _SaveStatus { idle, saving, saved, error }
+enum _SaveStatus { idle, saved, error }
 
 class ProfileFormScreen extends StatefulWidget {
   const ProfileFormScreen({super.key, this.resumeId});
@@ -96,10 +97,10 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
 
   /// Flushes any pending debounced save immediately. Used before leaving the
   /// screen so a quick back-press can't silently discard unsaved edits.
-  Future<void> _flushPendingSave() async {
+  void _flushPendingSave() {
     if (_debounce?.isActive ?? false) {
       _debounce!.cancel();
-      await _saveNow();
+      _saveNow();
     }
   }
 
@@ -170,7 +171,7 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
     );
   }
 
-  Future<void> _saveNow() async {
+  void _saveNow() {
     final userId = context.read<AuthService>().currentUser?.uid;
     if (userId == null) return;
 
@@ -178,15 +179,15 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
     // Assigned synchronously, before the write, so a save that starts while
     // this one is still in flight updates the same document.
     _resumeId ??= resumeService.newResumeId(userId);
-    final resume = _buildResume();
 
-    setState(() => _saveStatus = _SaveStatus.saving);
-    try {
-      await resumeService.saveResume(userId, resume);
-      if (mounted) setState(() => _saveStatus = _SaveStatus.saved);
-    } catch (_) {
+    // Not awaited: Firestore applies the write to the on-device cache
+    // immediately, but the returned future only completes once the server
+    // confirms it, which never happens while offline. Awaiting it would leave
+    // "Saving…" on screen and block leaving the form until reconnecting.
+    resumeService.saveResume(userId, _buildResume()).catchError((_) {
       if (mounted) setState(() => _saveStatus = _SaveStatus.error);
-    }
+    });
+    setState(() => _saveStatus = _SaveStatus.saved);
   }
 
   void _addSkill() {
@@ -227,14 +228,9 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
         rawExperience: _experienceSummaryForPrompt(),
       );
       if (!mounted) return;
-      _summaryController.text = summary;
-    } catch (e) {
+      _summaryController.text = summary;    } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Could not generate a summary: ${_friendlyError(e)}'),
-        ),
-      );
+      _showAiError("Couldn't write your summary.", e, _generateSummary);
     } finally {
       if (mounted) setState(() => _isGeneratingSummary = false);
     }
@@ -248,28 +244,21 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
         existingSkills: _skills,
       );
       if (!mounted) return;
-      setState(() => _suggestedSkills = suggestions);
-    } catch (e) {
+      setState(() => _suggestedSkills = suggestions);    } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Could not suggest skills: ${_friendlyError(e)}'),
-        ),
-      );
+      _showAiError("Couldn't suggest skills.", e, _suggestSkills);
     } finally {
       if (mounted) setState(() => _isSuggestingSkills = false);
     }
   }
 
-  String _friendlyError(Object error) {
-    final message = error.toString().toLowerCase();
-    if (message.contains('429') || message.contains('rate')) {
-      return 'the AI is rate-limited, try again in a moment';
-    }
-    if (message.contains('network') || message.contains('socket')) {
-      return 'no internet connection';
-    }
-    return 'please try again';
+  void _showAiError(String what, Object error, VoidCallback retry) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$what ${aiErrorMessage(error)}'),
+        action: SnackBarAction(label: 'Retry', onPressed: retry),
+      ),
+    );
   }
 
   Future<void> _addOrEditExperience({
@@ -341,10 +330,10 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
 
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (didPop, result) async {
+      onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        await _flushPendingSave();
-        if (context.mounted) Navigator.of(context).pop();
+        _flushPendingSave();
+        Navigator.of(context).pop();
       },
       child: Scaffold(
         appBar: AppBar(
@@ -358,9 +347,9 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
             IconButton(
               icon: const Icon(Icons.check),
               tooltip: 'Save and close',
-              onPressed: () async {
-                await _flushPendingSave();
-                if (context.mounted) Navigator.of(context).pop();
+              onPressed: () {
+                _flushPendingSave();
+                Navigator.of(context).pop();
               },
             ),
           ],
@@ -370,9 +359,8 @@ class _ProfileFormScreenState extends State<ProfileFormScreen> {
               padding: const EdgeInsets.only(bottom: 6),
               child: Text(switch (_saveStatus) {
                 _SaveStatus.idle => '',
-                _SaveStatus.saving => 'Saving…',
                 _SaveStatus.saved => 'Saved',
-                _SaveStatus.error => 'Could not save — check your connection',
+                _SaveStatus.error => 'Could not save your latest changes',
               }, style: Theme.of(context).textTheme.bodySmall),
             ),
           ),
@@ -605,6 +593,7 @@ class _ExperienceDialogState extends State<_ExperienceDialog> {
   );
 
   bool _isRewriting = false;
+  String? _rewriteError;
 
   @override
   void dispose() {
@@ -617,7 +606,10 @@ class _ExperienceDialogState extends State<_ExperienceDialog> {
   }
 
   Future<void> _rewriteWithAi() async {
-    setState(() => _isRewriting = true);
+    setState(() {
+      _isRewriting = true;
+      _rewriteError = null;
+    });
     try {
       final bullets = await context.read<AiService>().generateExperienceBullets(
         jobTitle: _titleController.text.trim(),
@@ -625,12 +617,10 @@ class _ExperienceDialogState extends State<_ExperienceDialog> {
         rawDescription: _bulletsController.text.trim(),
       );
       if (!mounted) return;
-      _bulletsController.text = bullets.join('\n');
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not rewrite bullets, try again.')),
-      );
+      _bulletsController.text = bullets.join('\n');    } catch (e) {
+      // Shown inside the dialog: a snackbar would sit behind the dialog's
+      // barrier where it can't be read.
+      if (mounted) setState(() => _rewriteError = aiErrorMessage(e));
     } finally {
       if (mounted) setState(() => _isRewriting = false);
     }
@@ -689,9 +679,16 @@ class _ExperienceDialogState extends State<_ExperienceDialog> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.auto_awesome, size: 18),
-                label: const Text('Rewrite with AI'),
+                label: Text(
+                  _rewriteError == null ? 'Rewrite with AI' : 'Retry',
+                ),
               ),
             ),
+            if (_rewriteError != null)
+              Text(
+                _rewriteError!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
           ],
         ),
       ),

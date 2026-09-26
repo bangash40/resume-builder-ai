@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../models/resume_model.dart';
 import '../services/ai_service.dart';
+import '../utils/ai_error.dart';
 
 const _minProfileLength = 50;
 const _maxProfileLength = 20000;
@@ -82,12 +83,11 @@ class _LinkedInImportScreenState extends State<LinkedInImportScreen> {
       final parsed = await context.read<AiService>().parseLinkedInProfile(text);
       if (!mounted) return;
       setState(() => _parsed = parsed);
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       setState(
-        () => _errorMessage =
-            'Could not read that profile. Check your internet connection and '
-            'try again.',
+        () =>
+            _errorMessage = "Couldn't read that profile. ${aiErrorMessage(e)}",
       );
     } finally {
       if (mounted) setState(() => _isParsing = false);

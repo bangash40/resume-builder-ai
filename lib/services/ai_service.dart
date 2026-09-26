@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
@@ -5,6 +6,11 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 
 import '../models/resume_model.dart';
 import '../secrets.dart';
+import '../utils/ai_error.dart';
+
+/// Per-attempt limit so a stalled request fails with a clear message instead
+/// of spinning forever (TRD §8, §9).
+const _requestTimeout = Duration(seconds: 30);
 
 /// Wraps the Gemini API for resume content generation (TRD §6.2, Approach A:
 /// calling Gemini directly from the app using the free-tier API key).
@@ -34,21 +40,17 @@ class AiService {
     while (true) {
       attempt++;
       try {
-        final response = await _model.generateContent([Content.text(prompt)]);
+        final response = await _model
+            .generateContent([Content.text(prompt)])
+            .timeout(_requestTimeout);
         final text = response.text;
         if (text == null || text.trim().isEmpty) {
-          throw StateError('Gemini returned an empty response.');
+          throw const FormatException('Gemini returned an empty response.');
         }
         return text;
       } catch (e) {
-        final message = e.toString().toLowerCase();
-        final isTransient =
-            message.contains('429') ||
-            message.contains('rate') ||
-            message.contains('503') ||
-            message.contains('unavailable') ||
-            message.contains('high demand');
-        if (attempt >= maxAttempts || !isTransient) rethrow;
+        final retryable = isTransientAiError(e.toString().toLowerCase());
+        if (attempt >= maxAttempts || !retryable) rethrow;
         await Future.delayed(Duration(seconds: pow(2, attempt).toInt()));
       }
     }

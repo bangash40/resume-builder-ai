@@ -1,6 +1,19 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
 
 String authErrorMessage(Object error) {
+  // Google sign-in reports failures from the native SDK as PlatformException.
+  if (error is PlatformException) {
+    switch (error.code) {
+      case 'network_error':
+        return 'No internet connection. Please try again.';
+      case 'sign_in_canceled':
+        return 'Google sign-in was cancelled.';
+      default:
+        return 'Google sign-in failed. Please try again, or use email and '
+            'password.';
+    }
+  }
   if (error is FirebaseAuthException) {
     switch (error.code) {
       case 'invalid-email':

@@ -10,12 +10,13 @@ import 'services/ai_service.dart';
 import 'services/auth_service.dart';
 import 'services/pdf_service.dart';
 import 'services/resume_service.dart';
+import 'widgets/offline_banner.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   _registerFontLicenses();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  runApp(const MainApp());
+  runApp(MainApp(isOnline: networkStatusStream()));
 }
 
 /// The bundled resume fonts are under the SIL Open Font License, which must
@@ -31,7 +32,9 @@ void _registerFontLicenses() {
 }
 
 class MainApp extends StatelessWidget {
-  const MainApp({super.key});
+  const MainApp({super.key, required this.isOnline});
+
+  final Stream<bool> isOnline;
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +45,11 @@ class MainApp extends StatelessWidget {
         Provider<AiService>(create: (_) => AiService()),
         Provider<PdfService>(create: (_) => PdfService()),
       ],
-      child: const MaterialApp(home: AuthGate()),
+      child: MaterialApp(
+        home: const AuthGate(),
+        builder: (context, child) =>
+            OfflineBanner(isOnline: isOnline, child: child!),
+      ),
     );
   }
 }

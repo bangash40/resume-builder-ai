@@ -152,9 +152,46 @@ class _ResumePreviewScreenState extends State<ResumePreviewScreen> {
               scrollViewDecoration: BoxDecoration(
                 color: colorScheme.surfaceContainerHighest,
               ),
+              onError: (_, _) => _PdfErrorView(
+                onRetry: () =>
+                    setState(() => _buildPdf = _pdfBuilderFor(_resume)),
+              ),
+              onPrintError: (context, _) => ScaffoldMessenger.of(context)
+                  .showSnackBar(
+                    const SnackBar(
+                      content: Text("Couldn't print your resume. Try again."),
+                    ),
+                  ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PdfErrorView extends StatelessWidget {
+  const _PdfErrorView({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              "We couldn't create your PDF. Your resume is safe. "
+              'Please try again.',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            FilledButton(onPressed: onRetry, child: const Text('Try again')),
+          ],
+        ),
       ),
     );
   }
